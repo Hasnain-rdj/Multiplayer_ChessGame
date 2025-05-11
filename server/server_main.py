@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 from common.protocol import make_message, parse_message
 from common.chess_game import ChessGame
 
@@ -8,6 +9,12 @@ PORT = 5555
 clients = []
 players = []  # List of (client_socket, addr, name, color)
 game = ChessGame()
+
+# Add time control (e.g., 5 minutes per player)
+TIME_LIMIT_SECONDS = 5 * 60  # 5 minutes
+player_times = {'white': TIME_LIMIT_SECONDS, 'black': TIME_LIMIT_SECONDS}
+last_move_time = None
+current_timer_color = None
 
 # Broadcast message to all clients
 def broadcast(message, sender=None):
@@ -19,7 +26,7 @@ def broadcast(message, sender=None):
                 pass
 
 def handle_client(client_socket, addr):
-    global players
+    global players, player_times, last_move_time, current_timer_color
     print(f"Client connected: {addr}")
     # Receive player name
     try:
@@ -50,6 +57,8 @@ def handle_client(client_socket, addr):
     print(f"Assigned {player_name} as {color}")
     # If both players are connected, broadcast a board message to start the game
     if len(players) == 2:
+        last_move_time = time.time()
+        current_timer_color = 'white'
         board_msg = make_message('board', {
             'fen': game.get_board_fen(),
             'move': None,
@@ -57,7 +66,8 @@ def handle_client(client_socket, addr):
             'history': game.get_move_history(),
             'game_over': game.is_game_over(),
             'winner': game.get_winner(),
-            'both_connected': True
+            'both_connected': True,
+            'player_times': player_times
         })
         broadcast(board_msg)
     try:
@@ -77,6 +87,27 @@ def handle_client(client_socket, addr):
                     sender = player_name
                     # Only allow move if it's this player's turn and color
                     if (color == 'white' and game.turn == 'white') or (color == 'black' and game.turn == 'black'):
+                        now = time.time()
+                        # Update timer for the player who just moved
+                        if current_timer_color == color and last_move_time is not None:
+                            elapsed = now - last_move_time
+                            player_times[color] -= elapsed
+                            if player_times[color] <= 0:
+                                # Time out, other player wins
+                                winner = 'black' if color == 'white' else 'white'
+                                board_msg = make_message('board', {
+                                    'fen': game.get_board_fen(),
+                                    'move': move_uci,
+                                    'turn': game.turn,
+                                    'history': game.get_move_history(),
+                                    'game_over': True,
+                                    'winner': winner,
+                                    'player_times': player_times
+                                })
+                                broadcast(board_msg)
+                                break
+                        last_move_time = now
+                        current_timer_color = 'black' if color == 'white' else 'white'
                         if move_uci and game.push_move(move_uci):
                             board_msg = make_message('board', {
                                 'fen': game.get_board_fen(),
@@ -84,7 +115,8 @@ def handle_client(client_socket, addr):
                                 'turn': game.turn,
                                 'history': game.get_move_history(),
                                 'game_over': game.is_game_over(),
-                                'winner': game.get_winner()
+                                'winner': game.get_winner(),
+                                'player_times': player_times
                             })
                             broadcast(board_msg)
                             print(f"Move {move_uci} accepted from {sender}")

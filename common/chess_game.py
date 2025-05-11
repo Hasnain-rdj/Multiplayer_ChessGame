@@ -21,7 +21,7 @@ class ChessGame:
             self.board.push(move)
             self.move_history.append(move_uci)
             if self.board.is_checkmate():
-                self.winner = self.turn
+                self.winner = 'white' if self.turn == 'black' else 'black'
             self.turn = 'black' if self.turn == 'white' else 'white'
             return True
         return False

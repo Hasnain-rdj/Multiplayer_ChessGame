@@ -7,6 +7,7 @@ import os
 import tkinter as tk
 from tkinter import simpledialog, messagebox
 from common.protocol import make_message, parse_message
+import time
 
 # Configuration
 default_server_ip = '127.0.0.1'
@@ -157,6 +158,16 @@ def gui_main(sock, player_color, player_name):
     winner_name = None
     opponent_connected = False
 
+    # Time logic
+    player_times = {'white': 5*60, 'black': 5*60}  # default 5 min, will be updated from server
+    last_update_time = time.time()
+    active_timer = None
+
+    def format_time(secs):
+        mins = int(secs) // 60
+        s = int(secs) % 60
+        return f"{mins:02}:{s:02}"
+
     def get_piece_image(symbol):
         piece_map = {
             'Q': 'Chess_qlt60.png', 'R': 'Chess_rlt60.png', 'B': 'Chess_blt60.png', 'N': 'Chess_blt60.png',
@@ -269,6 +280,12 @@ def gui_main(sock, player_color, player_name):
                         # Detect if both players are connected (if both white and black have joined)
                         if 'turn' in msg_obj['content']:
                             opponent_connected = True
+                        # Update timers
+                        if 'player_times' in msg_obj['content']:
+                            player_times = msg_obj['content']['player_times']
+                        if 'turn' in msg_obj['content']:
+                            active_timer = msg_obj['content']['turn']
+                        last_update_time = time.time()
                     elif msg_obj['type'] == 'error':
                         error_message = msg_obj['content'].get('text', '')
                     elif msg_obj['type'] == 'chat':
@@ -277,10 +294,45 @@ def gui_main(sock, player_color, player_name):
                     chat_lines.append(msg)
             else:
                 chat_lines.append(msg)
+        # Timer update (client-side smooth display)
+        now = time.time()
+        if active_timer and not game_over and opponent_connected:
+            if player_times[active_timer] > 0:
+                elapsed = now - last_update_time
+                # Only update the timer for the active player
+                show_times = player_times.copy()
+                show_times[active_timer] = max(0, player_times[active_timer] - elapsed)
+            else:
+                show_times = player_times.copy()
+        else:
+            show_times = player_times.copy()
         # Draw everything
         screen.fill(WHITE)
         draw_board(screen, board_fen, selected_square, legal_moves, flipped)
         draw_chat_right(screen, font, chat_lines, input_text)
+        # Draw timers (both at the bottom)
+        timer_font = pygame.font.SysFont(None, 36)
+        # Show your timer and opponent's timer side by side at the bottom
+        if player_color == 'white':
+            my_time = show_times['white']
+            opp_time = show_times['black']
+            my_label = "Your Time"
+            opp_label = "Opponent Time"
+        else:
+            my_time = show_times['black']
+            opp_time = show_times['white']
+            my_label = "Your Time"
+            opp_label = "Opponent Time"
+        # Draw a white rectangle at the bottom for timers
+        pygame.draw.rect(screen, WHITE, (0, BOARD_SIZE, BOARD_SIZE, WINDOW_HEIGHT - BOARD_SIZE))
+        my_time_surface = timer_font.render(f"{my_label}: {format_time(my_time)}", True, (0,0,0))
+        opp_time_surface = timer_font.render(f"{opp_label}: {format_time(opp_time)}", True, (0,0,0))
+        # Center both timers horizontally at the bottom
+        total_width = my_time_surface.get_width() + 40 + opp_time_surface.get_width()
+        start_x = (BOARD_SIZE - total_width) // 2
+        y_pos = BOARD_SIZE + 20
+        screen.blit(my_time_surface, (start_x, y_pos))
+        screen.blit(opp_time_surface, (start_x + my_time_surface.get_width() + 40, y_pos))
         if promotion_pending:
             promo_pieces = ['q', 'r', 'b', 'n']
             for idx, p in enumerate(promo_pieces):
