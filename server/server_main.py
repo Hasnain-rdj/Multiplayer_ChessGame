@@ -46,7 +46,6 @@ def handle_client(client_socket, addr):
     elif len(players) == 2:
         color= 'spectator'
     else:
-        # More than 2 players: spectator mode (not implemented yet)
         client_socket.sendall(make_message('error', {'text': 'Game is full. Only two players allowed.'}))
         client_socket.close()
         return
