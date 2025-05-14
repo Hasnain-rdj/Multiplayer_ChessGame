@@ -9,8 +9,10 @@ from tkinter import simpledialog, messagebox
 from common.protocol import make_message, parse_message
 import time
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # Configuration
-default_server_ip = '127.0.0.1'
+default_server_ip = '16.171.152.161'
 default_server_port = 5555
 
 # GUI settings
@@ -171,7 +173,7 @@ def gui_main(sock, player_color, player_name):
     def get_piece_image(symbol):
         piece_map = {
             'Q': 'Chess_qlt60.png', 'R': 'Chess_rlt60.png', 'B': 'Chess_blt60.png', 'N': 'Chess_blt60.png',
-            'q': 'Chess_qdt60.png', 'r': 'Chess_rdt60.png', 'b': 'Chess_bdt60.png', 'n': 'Chess_ndt60.png',
+            'q': 'Chess_qdt60.png', 'r': 'Chess_rdt60.png', 'b': 'Chess_bdt60.png', 'n': 'Chess_bdt60.png',
         }
         asset_dir = os.path.join(os.path.dirname(__file__), 'assets')
         fname = piece_map[symbol]
