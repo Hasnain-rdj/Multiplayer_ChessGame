@@ -12,7 +12,8 @@ import time
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Configuration
-default_server_ip = '16.171.152.161'
+# default_server_ip = '16.171.152.161'
+default_server_ip = '127.0.0.1'
 default_server_port = 5555
 
 # GUI settings

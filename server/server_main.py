@@ -10,8 +10,8 @@ clients = []
 players = []  # List of (client_socket, addr, name, color)
 game = ChessGame()
 
-# Add time control (e.g., 5 minutes per player)
-TIME_LIMIT_SECONDS = 5 * 60  # 5 minutes
+# Add time control (e.g., 30 minutes per player)
+TIME_LIMIT_SECONDS = 30 * 60  # 30 minutes
 player_times = {'white': TIME_LIMIT_SECONDS, 'black': TIME_LIMIT_SECONDS}
 last_move_time = None
 current_timer_color = None
@@ -26,7 +26,7 @@ def broadcast(message, sender=None):
                 pass
 
 def handle_client(client_socket, addr):
-    global players, player_times, last_move_time, current_timer_color
+    global players, player_times, last_move_time, current_timer_color, game
     print(f"Client connected: {addr}")
     # Receive player name
     try:
@@ -139,8 +139,19 @@ def handle_client(client_socket, addr):
                 players.pop(i)
                 break
         client_socket.close()
+        # If all clients have disconnected, reset everything for a new game
+        if len(clients) == 0:
+            print("All clients disconnected. Resetting server for a new game...")
+            # Reset game state
+            game = ChessGame()
+            player_times['white'] = TIME_LIMIT_SECONDS
+            player_times['black'] = TIME_LIMIT_SECONDS
+            last_move_time = None
+            current_timer_color = None
+            players.clear()
 
 def main():
+    global game, player_times, last_move_time, current_timer_color, players
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((HOST, PORT))
